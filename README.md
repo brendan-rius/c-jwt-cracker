@@ -17,6 +17,7 @@ In the above example, the key is `Sn1f`. It takes approximately 2 minutes to cra
 
 ## Caveats
 
- * Not multi-threaded
- * Letters permutation generator could be a bit faster
- * No progress status
+ * Not multi-threaded :((
+ * Letters permutation generator could be a bit faster :|
+ * No progress status :(
+ * If you stop the program, you cannot start back where you were :((
