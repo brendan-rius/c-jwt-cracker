@@ -1,6 +1,6 @@
 # JWT cracker
 
-A fast JWT cracker written in C.
+A JWT brute-force cracker written in C.
 I used the Apple Base64 implementation that I modified slightly.
 
 ## Compile
