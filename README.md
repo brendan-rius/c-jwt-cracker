@@ -13,7 +13,7 @@ make
 ./jwtcrack eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.cAOIAifu3fykvhkHpbuhbvtH807-Z2rI1FS3vX1XMjE
 ```
 
-In the above example, the key is `Sn1f`. It takes approximately 2 minutes to crack on my Macbook.
+In the above example, the key is `Sn1f`. It takes approximately 23 seconds to crack on my Macbook.
 
 ## Caveats
 
