@@ -61,19 +61,15 @@ bool bruteImpl(char* str, int index, int maxDepth)
 	return false;
 }
 
-char *bruteSequential(int maxLen)
+char *bruteSequential(int start, int maxLen)
 {
-		char *ret = NULL;
-
-    for (int i = 1; i <= maxLen; ++i)
+    for (int i = start; i <= maxLen; ++i)
     {
-      	if (bruteImpl(g_buffer, 0, i)) {
-					ret = strdup(g_buffer);
-					break;
-				}
+      	if (bruteImpl(g_buffer, 0, i))
+					return strdup(g_buffer);
     }
 
-	return ret;
+		return NULL;
 }
 
 void usage(const char *cmd) {
@@ -126,10 +122,10 @@ int main(int argc, char **argv) {
 
 	g_result = malloc(EVP_MAX_MD_SIZE);
 	g_buffer = malloc(max_len + 1);
-	g_evp_md = EVP_sha256();
+	g_evp_md = (EVP_MD *) EVP_sha256();
 
 	clock_t start = clock(), diff;
-	char *secret = bruteSequential(max_len);
+	char *secret = bruteSequential(1, max_len);
 	diff = clock() - start;
 
 
