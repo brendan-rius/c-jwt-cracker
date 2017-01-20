@@ -4,6 +4,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <stdbool.h>
+#include <time.h>
 #include "base64.h"
 
 
@@ -22,61 +23,63 @@ size_t g_to_encrypt_len = 0;
 char *g_alphabet = NULL;
 size_t g_alphabet_len = 0;
 
-bool check(const char *secret, size_t secret_len) {
-	// printf("Trying %s (%lu)\n", secret, secret_len);
+unsigned char* g_result = NULL;
+unsigned int g_result_len = 0;
 
+char *g_buffer = NULL;
+
+EVP_MD *g_evp_md = NULL;
+
+bool check(const char *secret, size_t secret_len) {
 	// Hash to_encrypt using HMAC-SHA256 into result
-	unsigned int result_len = 0;
-	unsigned char* result = malloc(EVP_MAX_MD_SIZE);
 	HMAC(
-		EVP_sha256(),
+		g_evp_md,
 		(const unsigned char *) secret, secret_len,
 		(const unsigned char *) g_to_encrypt, g_to_encrypt_len,
-		result, &result_len
+		g_result, &g_result_len
 	);
 
 	// Compare the computed hash to the given decoded base64 signature.
 	// If there is a match, we just found the key.
-	int res = memcmp(result, g_signature, g_signature_len);
-	free(result);
-	return res == 0;
+	return memcmp(g_result, g_signature, g_signature_len) == 0;
 }
 
-void bruteImpl(char* str, int index, int maxDepth)
+bool bruteImpl(char* str, int index, int maxDepth)
 {
     for (int i = 0; i < g_alphabet_len; ++i)
     {
         str[index] = g_alphabet[i];
 
         if (index == maxDepth - 1) {
-					bool stop = check((const char *) str, strlen(str));
-					if (stop) {
-						printf("FOUND \"%s\"", str);
-						exit(0);
-					}
+					if (check((const char *) str, maxDepth)) return true;
 				}
-        else bruteImpl(str, index + 1, maxDepth);
+        else {
+					if (bruteImpl(str, index + 1, maxDepth)) return true;
+				}
     }
+
+	return false;
 }
 
-void bruteSequential(int maxLen)
+char *bruteSequential(int maxLen)
 {
-    char* buf = malloc(maxLen + 1);
+		char *ret = NULL;
 
     for (int i = 1; i <= maxLen; ++i)
     {
-        memset(buf, 0, maxLen + 1);
-        bruteImpl(buf, 0, i);
+      	if (bruteImpl(g_buffer, 0, i)) {
+					ret = strdup(g_buffer);
+					break;
+				}
     }
 
-		printf("No solution found :-(\n");
-    free(buf);
+	return ret;
 }
 
 void usage(const char *cmd) {
 	printf("%s <token> [alphabet] [max_len]\n"
-					"Defaults: max_len=6, "
-					"alphabet=eariotnslcudpmhgbfywkvxzjqEARIOTNSLCUDPMHGBFYWKVXZJQ0123456789", cmd);
+				   "Defaults: max_len=6, "
+				   "alphabet=eariotnslcudpmhgbfywkvxzjqEARIOTNSLCUDPMHGBFYWKVXZJQ0123456789", cmd);
 }
 
 int main(int argc, char **argv) {
@@ -91,11 +94,10 @@ int main(int argc, char **argv) {
 	// Get the token
 	char *jwt = argv[1];
 
-	if (argc > 2) {
-			g_alphabet = argv[2];
-	}
+	if (argc > 2)
+		g_alphabet = argv[2];
 	if (argc > 3)
-			max_len = (size_t) atoi(argv[3]);
+		max_len = (size_t) atoi(argv[3]);
 
 	g_alphabet_len = strlen(g_alphabet);
 
@@ -122,7 +124,26 @@ int main(int argc, char **argv) {
 	// is returned by this function
 	g_signature_len = Base64decode((char *) g_signature, (const char *) g_signature_b64);
 
-	bruteSequential(max_len);
+	g_result = malloc(EVP_MAX_MD_SIZE);
+	g_buffer = malloc(max_len + 1);
+	g_evp_md = EVP_sha256();
+
+	clock_t start = clock(), diff;
+	char *secret = bruteSequential(max_len);
+	diff = clock() - start;
+
+
+	if (secret == NULL)
+		printf("No solution found :-(\n");
+	else
+		printf("Secret is \"%s\"\n", secret);
+
+	free(g_result);
+	free(g_buffer);
+	free(secret);
+
+	int msec = diff * 1000 / CLOCKS_PER_SEC;
+	printf("Time taken %d seconds %d milliseconds", msec/1000, msec%1000);
 
 	return 0;
 }

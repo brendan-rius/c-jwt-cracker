@@ -2,7 +2,7 @@ CC	= gcc
 RM	= rm -f
 CP	= cp
 
-CFLAGS	+= -I/usr/local/opt/openssl/include
+CFLAGS	+= -I/usr/local/opt/openssl/include -O3
 LDFLAGS	+= -lssl -lcrypto
 
 NAME	= jwtcrack
