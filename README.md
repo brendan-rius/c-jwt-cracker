@@ -17,7 +17,7 @@ If you use a Mac, you can install OpenSSL with `brew install openssl`, but the h
 different location:
 
 ```
-make OPENSSL=/usr/local/opt/openssl/include
+make OPENSSL=/usr/local/opt/openssl/include OPENSSL_LIB=-L/usr/local/opt/openssl/lib
 ```
 
 ## Run

@@ -1,9 +1,10 @@
 CC	= gcc
 
 OPENSSL = /usr/include/openssl
+OPENSSL_LIB = -lssl
 
 CFLAGS	+= -I $(OPENSSL) -O3
-LDFLAGS	+= -lssl -lcrypto
+LDFLAGS	+= $(OPENSSL_LIB) -lcrypto
 
 NAME	= jwtcrack
 SRCS	= main.c base64.c
@@ -15,9 +16,9 @@ $(NAME): $(OBJS)
 	$(CC) -o $(NAME) $(OBJS) $(LDFLAGS)
 
 clean:
-	rm $(OBJS)
+	rm -f $(OBJS)
 
 fclean: clean
-	rm $(NAME)
+	rm -f $(NAME)
 
 re: fclean all
