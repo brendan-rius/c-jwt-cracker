@@ -1,13 +1,13 @@
 # JWT cracker
 
-A JWT brute-force cracker written in C.
+A JWT brute-force cracker written in C. If you are very lucky or have a huge computing power, this program should find the secret key of a JWT token, allowing you to forge valid tokens. This is for testing purposes only, do not put yourself in trouble :)
 
 I used the [Apple Base64 implementation](https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c) that I modified slightly.
 
 ## Compile
 
 Make sure you have openssl's headers installed.
-On Ubuntu youcan install them with `apt-get install libssl-dev`
+On Ubuntu you can install them with `apt-get install libssl-dev`
 
 ```
 make
