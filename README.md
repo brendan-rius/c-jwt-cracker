@@ -1,6 +1,6 @@
 # JWT cracker
 
-A JWT brute-force cracker written in C. If you are very lucky or have a huge computing power, this program should find the secret key of a JWT token, allowing you to forge valid tokens. This is for testing purposes only, do not put yourself in trouble :)
+A multi-threaded JWT brute-force cracker written in C. If you are very lucky or have a huge computing power, this program should find the secret key of a JWT token, allowing you to forge valid tokens. This is for testing purposes only, do not put yourself in trouble :)
 
 I used the [Apple Base64 implementation](https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c) that I modified slightly.
 
@@ -30,6 +30,5 @@ In the above example, the key is `Sn1f`. It takes approximately 23 seconds to cr
 
 ## Caveats
 
- * Not multi-threaded :((
  * No progress status
  * If you stop the program, you cannot start back where you were

@@ -3,8 +3,8 @@ CC	= gcc
 OPENSSL = /usr/include/openssl
 OPENSSL_LIB = -lssl
 
-CFLAGS	+= -I $(OPENSSL) -O3
-LDFLAGS	+= $(OPENSSL_LIB) -lcrypto
+CFLAGS	+= -I $(OPENSSL) -g -std=gnu99 -O3
+LDFLAGS	+= $(OPENSSL_LIB) -lcrypto -lpthread
 
 NAME	= jwtcrack
 SRCS	= main.c base64.c
