@@ -28,7 +28,14 @@ $ > ./jwtcrack eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwi
 
 In the above example, the key is `Sn1f`. It takes approximately 2 seconds to crack on my Macbook.
 
-## Caveats
+## Contribute
 
  * No progress status
  * If you stop the program, you cannot start back where you were
+ 
+## IMPORTANT: Known bugs
+
+The base64 implementation I use (from Apple) is sometimes buggy because not every Base64 implementation is the same.
+So sometimes, decrypting of your Base64 token will only work partially and thus you will be able to find a secret to your token that is not the correct one.
+
+If someone is willing to implement a more robust Base64 implementation, that would be great :)
