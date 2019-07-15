@@ -5,7 +5,7 @@
 #include <openssl/hmac.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include "base64.h"
+#include "base64url.h"
 
 char *g_header_b64 = NULL; // Holds the Base64 header of the original JWT
 char *g_payload_b64 = NULL; // Holds the Base64 payload of the original JWT
@@ -190,17 +190,12 @@ int main(int argc, char **argv) {
 	sprintf((char *) g_to_encrypt, "%s.%s", g_header_b64, g_payload_b64);
 
 	// Decode the signature
-	g_signature_len = Base64decode_len((const char *) g_signature_b64);
-	g_signature = malloc(g_signature_len);
-	// We re-assign the length, because Base64decode_len returned us an approximation
-	// of the size so we could malloc safely. But we need the real decoded size, which
-	// is returned by this function
-	g_signature_len = Base64decode((char *) g_signature, (const char *) g_signature_b64);
+	g_signature_len = base64url_decode((const unsigned char *) g_signature_b64, (unsigned char **) &g_signature);
 
 
     struct s_thread_data *pointers_data[g_alphabet_len];
     pthread_t *tid = malloc(g_alphabet_len * sizeof(pthread_t));
-
+	
     for (size_t i = 0; i < g_alphabet_len; i++) {
         pointers_data[i] = malloc(sizeof(struct s_thread_data));
         init_thread_data(pointers_data[i], g_alphabet[i], max_len);
