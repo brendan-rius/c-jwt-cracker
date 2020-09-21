@@ -4,7 +4,19 @@ A multi-threaded JWT brute-force cracker written in C. If you are very lucky or 
 
 I used the [Apple Base64 implementation](https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c) that I modified slightly.
 
-## Compile
+## Build a Docker Image
+```
+docker build . -t jwtcrack
+
+```
+
+
+## Run on Docker
+```
+docker run -it --rm  jwtcrack eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.cAOIAifu3fykvhkHpbuhbvtH807-Z2rI1FS3vX1XMjE
+```
+
+## Manual Compilation
 
 Make sure you have openssl's headers installed.
 On Ubuntu you can install them with `apt-get install libssl-dev`
