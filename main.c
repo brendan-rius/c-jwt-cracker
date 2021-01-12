@@ -1,3 +1,12 @@
+/*
+
+Copyright (c) 2017 Brendan Rius. All rights reserved
+
+Configurable HMAC hash functions implemented in 2021 by Maxim Masiutin,
+see the "README.md" file for more details.
+
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +38,7 @@ size_t g_alphabet_len = 0;
 char *g_found_secret = NULL;
 
 struct s_thread_data {
-    EVP_MD *g_evp_md; // The hash function to apply the HMAC to
+    const EVP_MD *g_evp_md; // The hash function to apply the HMAC to
 
     // Holds the computed signature at each iteration to compare it with the original
     // signature
@@ -42,15 +51,15 @@ struct s_thread_data {
     size_t max_len; // And tries combinations up to a certain length
 };
 
-void init_thread_data(struct s_thread_data *data, char starting_letter, size_t max_len) {
+void init_thread_data(struct s_thread_data *data, char starting_letter, size_t max_len, const EVP_MD *evp_md) {
     data->max_len = max_len;
     data->starting_letter = starting_letter;
-    // The chosen hash function is SHA-256
-	data->g_evp_md = (EVP_MD *) EVP_sha256();
+// The chosen hash function for HMAC
+    data->g_evp_md = evp_md;
     // Allocate the buffer used to hold the calculated signature
-	data->g_result = malloc(EVP_MAX_MD_SIZE);
+    data->g_result = malloc(EVP_MAX_MD_SIZE);
     // Allocate the buffer used to hold the generated key
-	data->g_buffer = malloc(max_len + 1);
+    data->g_buffer = malloc(max_len + 1);
 }
 
 void destroy_thread_data(struct s_thread_data *data) {
@@ -71,7 +80,7 @@ bool check(struct s_thread_data *data, const char *secret, size_t secret_len) {
         pthread_exit(NULL);
     }
 
-	// Hash to_encrypt using HMAC into result
+	// Hash the "to_encrypt" buffer using HMAC into the "result" buffer
 	HMAC(
 		data->g_evp_md,
 		(const unsigned char *) secret, secret_len,
@@ -150,18 +159,26 @@ char *brute_sequential(struct s_thread_data *data)
 	return NULL;
 }
 
-void usage(const char *cmd) {
-	printf("%s <token> [alphabet] [max_len]\n"
-				   "Defaults: max_len=6, "
-				   "alphabet=eariotnslcudpmhgbfywkvxzjqEARIOTNSLCUDPMHGBFYWKVXZJQ0123456789", cmd);
+void usage(const char *cmd, const char *alphabet, const size_t max_len, const char *hmac_alg) {
+	printf("%s <token> [alphabet] [max_len] [hmac_alg]\n"
+				   "Defaults: "
+				   "alphabet=%s, "
+				   "max_len=%zd, "
+				   "hmac_alg=%s\n", cmd, alphabet, max_len, hmac_alg);
 }
 
 int main(int argc, char **argv) {
+
+	const EVP_MD *evp_md;
 	size_t max_len = 6;
+	
+	// by default, use OpenSSL EVP_sha256 which corresponds to JSON HS256 (HMAC-SHA256)
+	const char *default_hmac_alg = "sha256";
+
 	g_alphabet = "eariotnslcudpmhgbfywkvxzjqEARIOTNSLCUDPMHGBFYWKVXZJQ0123456789";
 
 	if (argc < 2) {
-		usage(argv[0]);
+		usage(argv[0], g_alphabet, max_len, default_hmac_alg);
 		return 1;
 	}
 
@@ -170,8 +187,38 @@ int main(int argc, char **argv) {
 
 	if (argc > 2)
 		g_alphabet = argv[2];
+
 	if (argc > 3)
-		max_len = (size_t) atoi(argv[3]);
+	{
+		int i3 = atoi(argv[3]);
+		if (i3 > 0)
+		{
+			max_len = i3;
+		} else
+		{
+			printf("Invalid max_len value %s (%d), defaults to %zd\n", argv[3], i3, max_len);
+		}
+	}
+
+	if (argc > 4)
+	{
+		evp_md = EVP_get_digestbyname(argv[4]);
+		if (evp_md == NULL) 
+			printf("Unknown message digest %s, will use default %s\n", argv[4], default_hmac_alg);
+	} else
+	{
+	   evp_md = NULL; 
+	}
+
+	if (evp_md == NULL) 
+	{
+		evp_md = EVP_get_digestbyname(default_hmac_alg);
+		if (evp_md == NULL) 
+		{
+			printf("Cannot initialize the default message digest %s, aborting\n", default_hmac_alg);
+			return 1;
+		}
+	}
 
 	g_alphabet_len = strlen(g_alphabet);
 
@@ -203,7 +250,7 @@ int main(int argc, char **argv) {
 
     for (size_t i = 0; i < g_alphabet_len; i++) {
         pointers_data[i] = malloc(sizeof(struct s_thread_data));
-        init_thread_data(pointers_data[i], g_alphabet[i], max_len);
+        init_thread_data(pointers_data[i], g_alphabet[i], max_len, evp_md);
         pthread_create(&tid[i], NULL, (void *(*)(void *)) brute_sequential, pointers_data[i]);
     }
 
