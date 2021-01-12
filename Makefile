@@ -7,7 +7,7 @@ CFLAGS	+= -I $(OPENSSL) -g -std=gnu99 -O3
 LDFLAGS	+= $(OPENSSL_LIB) -lcrypto -lpthread
 
 NAME	= jwtcrack
-SRCS	= main.c base64.c
+SRCS	= main.c base64url.c
 OBJS	= $(SRCS:.c=.o)
 
 all: $(NAME)
