@@ -14,7 +14,13 @@ see the "README.md" file for more details.
 #include <openssl/hmac.h>
 #include <stdbool.h>
 #include <pthread.h>
+#ifndef NO_STATS
+#include <time.h>
+#include <stdatomic.h>
+#endif
 #include "base64.h"
+
+#define unlikely(x)     __builtin_expect(!!(x), 0)
 
 char *g_header_b64 = NULL; // Holds the Base64 header of the original JWT
 char *g_payload_b64 = NULL; // Holds the Base64 payload of the original JWT
@@ -37,6 +43,9 @@ size_t g_alphabet_len = 0;
 
 char *g_found_secret = NULL;
 
+// Information about how many HMACs we have attempted.  We will report on timing unless
+// compiled with -DNO_STATS
+
 struct s_thread_data {
     const EVP_MD *g_evp_md; // The hash function to apply the HMAC to
 
@@ -49,7 +58,30 @@ struct s_thread_data {
 
     char starting_letter; // Each thread is assigned a first letter
     size_t max_len; // And tries combinations up to a certain length
+
+    #ifndef NO_STATS
+    // Thread-local count of attempts since last report.
+    unsigned int g_attempts;
+    #endif
 };
+
+#ifndef NO_STATS
+_Atomic unsigned int g_total_attempts    = ATOMIC_VAR_INIT(0);
+
+struct timespec ts_start, ts_end;
+
+static double time_diff(struct timespec *end, struct timespec *start) {
+    return ((double)(end->tv_sec - start->tv_sec))
+         + ((end->tv_nsec - start->tv_nsec) / 1000000000.0);
+}
+
+#define update_count(x) (x->g_attempts++)
+#define report(x)       atomic_fetch_add(&g_total_attempts, x->g_attempts)
+#else
+#define update_count(x)
+#define report(x)
+#endif
+
 
 void init_thread_data(struct s_thread_data *data, char starting_letter, size_t max_len, const EVP_MD *evp_md) {
     data->max_len = max_len;
@@ -60,6 +92,9 @@ void init_thread_data(struct s_thread_data *data, char starting_letter, size_t m
     data->g_result = malloc(EVP_MAX_MD_SIZE);
     // Allocate the buffer used to hold the generated key
     data->g_buffer = malloc(max_len + 1);
+    #ifndef NO_STATS
+    data->g_attempts = 0;
+    #endif
 }
 
 void destroy_thread_data(struct s_thread_data *data) {
@@ -69,13 +104,14 @@ void destroy_thread_data(struct s_thread_data *data) {
 
 /**
  * Check if the signature produced with "secret
- * of size "secrent_len" (without the '\0') matches the original
+ * of size "secret_len" (without the '\0') matches the original
  * signature.
  * Return true if it matches, false otherwise
  */
 bool check(struct s_thread_data *data, const char *secret, size_t secret_len) {
     // If the secret was found by another thread, stop this thread
     if (g_found_secret != NULL) {
+        report(data);
         destroy_thread_data(data);
         pthread_exit(NULL);
     }
@@ -90,6 +126,7 @@ bool check(struct s_thread_data *data, const char *secret, size_t secret_len) {
 
 	// Compare the computed hash to the given decoded base64 signature.
 	// If there is a match, we just found the key.
+        update_count(data);
 	return memcmp(data->g_result, g_signature, g_signature_len) == 0;
 }
 
@@ -139,6 +176,8 @@ char *brute_sequential(struct s_thread_data *data)
         // so other threads stop, and stop the current thread. Congrats little
         // thread!
         g_found_secret = strndup(data->g_buffer, 1);
+
+        report(data);
         return g_found_secret;
     }
 
@@ -150,12 +189,15 @@ char *brute_sequential(struct s_thread_data *data)
             // so other threads stop, and stop the current thread. Congrats little
             // thread!
             g_found_secret = strndup(data->g_buffer, i);
+
+            report(data);
             return g_found_secret;
         }
     }
 
    success:
-    
+
+        report(data);
 	return NULL;
 }
 
@@ -171,7 +213,7 @@ int main(int argc, char **argv) {
 
 	const EVP_MD *evp_md;
 	size_t max_len = 6;
-	
+
 	// by default, use OpenSSL EVP_sha256 which corresponds to JSON HS256 (HMAC-SHA256)
 	const char *default_hmac_alg = "sha256";
 
@@ -203,17 +245,17 @@ int main(int argc, char **argv) {
 	if (argc > 4)
 	{
 		evp_md = EVP_get_digestbyname(argv[4]);
-		if (evp_md == NULL) 
+		if (evp_md == NULL)
 			printf("Unknown message digest %s, will use default %s\n", argv[4], default_hmac_alg);
 	} else
 	{
-	   evp_md = NULL; 
+	   evp_md = NULL;
 	}
 
-	if (evp_md == NULL) 
+	if (evp_md == NULL)
 	{
 		evp_md = EVP_get_digestbyname(default_hmac_alg);
-		if (evp_md == NULL) 
+		if (evp_md == NULL)
 		{
 			printf("Cannot initialize the default message digest %s, aborting\n", default_hmac_alg);
 			return 1;
@@ -248,6 +290,11 @@ int main(int argc, char **argv) {
     struct s_thread_data *pointers_data[g_alphabet_len];
     pthread_t *tid = malloc(g_alphabet_len * sizeof(pthread_t));
 
+    #ifndef NO_STATS
+    printf("Launching: %d threads\n", g_alphabet_len);
+    clock_gettime(CLOCK_MONOTONIC, &ts_start);
+    #endif
+
     for (size_t i = 0; i < g_alphabet_len; i++) {
         pointers_data[i] = malloc(sizeof(struct s_thread_data));
         init_thread_data(pointers_data[i], g_alphabet[i], max_len, evp_md);
@@ -257,10 +304,23 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < g_alphabet_len; i++)
         pthread_join(tid[i], NULL);
 
-	if (g_found_secret == NULL)
-		printf("No solution found :-(\n");
-	else
-		printf("Secret is \"%s\"\n", g_found_secret);
+    if (g_found_secret == NULL)
+        printf("No solution found :-(\n");
+    else
+        printf("Secret is \"%s\"\n", g_found_secret);
+
+    #ifndef NO_STATS
+    clock_gettime(CLOCK_MONOTONIC, &ts_end);
+    double   diff     = time_diff(&ts_end, &ts_start);
+    uint64_t nthreads = g_alphabet_len;
+    double   ops      = g_total_attempts / diff;
+    double   opth     = g_total_attempts / nthreads;
+
+    printf("Made %ld attempts in %.4f seconds (ops/sec: %.3f)\n",
+           g_total_attempts, diff, ops);
+
+    printf("That is an avg of %.4f attempts per thread.\n", opth);
+    #endif
 
     free(g_found_secret);
     free(tid);
